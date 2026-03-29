@@ -1,4 +1,5 @@
 use eframe::egui;
+use std::path::Path;
 
 use crate::{
     app::EditorState,
@@ -34,7 +35,8 @@ pub fn process_object_events(
         editor_state.selected_object_id = Some(index);
         editor_state.is_selected_for_text_edit = false;
     }
-    if obj_resp.double_clicked() {
+    // Двойной клик открывает текстовый редактор только для не-картинок
+    if obj_resp.double_clicked() && obj.image_path.is_none() {
         editor_state.selected_object_id = Some(index);
         editor_state.is_selected_for_text_edit = true;
     }
@@ -55,6 +57,26 @@ pub fn create_object_context_menu(
             *object_to_remove_id = Some(index);
         }
     });
+}
+
+/// Отрисовка картинки. egui кэширует текстуры по Uri, повторная загрузка не происходит.
+pub fn add_image(
+    ui: &mut egui::Ui,
+    _ctx: &egui::Context,
+    obj: &Object,
+    rect: egui::Rect,
+    project_path: &Path,
+) {
+    if let Some(img_relative_path) = &obj.image_path {
+        let full_path = project_path.join(img_relative_path);
+
+        let uri = format!("file://{}", full_path.display());
+        let image = egui::Image::new(&uri)
+            .fit_to_exact_size(rect.size())
+            .maintain_aspect_ratio(false);
+
+        ui.put(rect, image);
+    }
 }
 
 pub fn add_edit_text(

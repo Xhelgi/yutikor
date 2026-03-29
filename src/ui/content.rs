@@ -1,4 +1,5 @@
 use eframe::egui;
+use std::path::Path;
 
 use crate::{
     app::{EditorState, GraphState},
@@ -16,6 +17,7 @@ pub fn create_content_panel(
     crt_page: &mut Page,
     graph_state: &mut GraphState,
     editor_state: &mut EditorState,
+    project_path: &Path,
 ) {
     egui::CentralPanel::default()
         .frame(egui::Frame::NONE.fill(egui::Color32::WHITE))
@@ -23,8 +25,8 @@ pub fn create_content_panel(
             draw_and_process_page_links(ctx, ui, graph_state);
             let inner_rect = ui.available_rect_before_wrap().shrink(30.0);
             ui.scope_builder(egui::UiBuilder::new().max_rect(inner_rect), |ui| {
-                draw_and_process_background(ctx, ui, crt_page, editor_state);
-                draw_and_process_objects(ctx, ui, crt_page, editor_state);
+                draw_and_process_background(ctx, ui, crt_page, editor_state, project_path);
+                draw_and_process_objects(ctx, ui, crt_page, editor_state, project_path);
             });
         });
 }
@@ -77,6 +79,7 @@ fn draw_and_process_background(
     ui: &egui::Ui,
     crt_page: &mut Page,
     editor_state: &mut EditorState,
+    project_path: &Path,
 ) {
     let available_rect = ui.available_rect_before_wrap();
     ui.painter()
@@ -91,7 +94,7 @@ fn draw_and_process_background(
         editor_state.selected_object_id = None;
         editor_state.is_selected_for_text_edit = false;
     }
-    help_background::create_background_context_menu(ctx, &bg_response, crt_page);
+    help_background::create_background_context_menu(ctx, &bg_response, crt_page, project_path);
 }
 
 fn draw_and_process_objects(
@@ -99,6 +102,7 @@ fn draw_and_process_objects(
     ui: &mut egui::Ui,
     crt_page: &mut Page,
     editor_state: &mut EditorState,
+    project_path: &Path,
 ) {
     let available_rect = ui.available_rect_before_wrap();
     let painter = ui.painter().with_clip_rect(available_rect);
@@ -110,7 +114,7 @@ fn draw_and_process_objects(
         let colors =
             help_objects::get_colors(obj, is_selected, editor_state.is_selected_for_text_edit);
 
-        // 0. Draw Rect
+        // 0. Draw Rect (рамка всегда, даже для картинок)
         painter.rect(
             rect,
             obj.corner_radius,
@@ -119,8 +123,10 @@ fn draw_and_process_objects(
             egui::StrokeKind::Inside,
         );
 
-        if is_editing {
-            // 1a. Режим редактирования текста
+        // 1. Контент — картинка или текст
+        if obj.image_path.is_some() {
+            help_objects::add_image(ui, ctx, obj, rect, project_path);
+        } else if is_editing {
             help_objects::add_edit_text(
                 ui,
                 rect,
@@ -129,15 +135,7 @@ fn draw_and_process_objects(
                 obj.font_size,
                 obj.text_offset,
             );
-            // Только hover чтобы не перехватывать клики у TextEdit
-            let hover_resp = ui.interact(rect, egui::Id::new(index), egui::Sense::hover());
-            help_objects::create_object_context_menu(
-                &hover_resp,
-                index,
-                &mut editor_state.object_to_remove_id,
-            );
         } else {
-            // 1b. Режим отображения
             help_objects::add_label_text(
                 &painter,
                 rect,
@@ -147,15 +145,29 @@ fn draw_and_process_objects(
                 obj.text_offset,
                 obj.text_align,
             );
+        }
+
+        // 2. События — для картинок двойной клик не открывает текстовый редактор
+        let obj_resp = if is_editing {
+            let hover_resp = ui.interact(rect, egui::Id::new(index), egui::Sense::hover());
+            help_objects::create_object_context_menu(
+                &hover_resp,
+                index,
+                &mut editor_state.object_to_remove_id,
+            );
+            hover_resp
+        } else {
             let obj_resp = help_objects::process_object_events(ui, obj, index, rect, editor_state);
             help_objects::create_object_context_menu(
                 &obj_resp,
                 index,
                 &mut editor_state.object_to_remove_id,
             );
-        }
+            obj_resp
+        };
+        let _ = obj_resp;
 
-        // 2. Resize-маркеры
+        // 3. Resize-маркеры
         let mut is_dragged = false;
         if is_selected {
             help_objects::create_left_top_corner(ctx, ui, obj, rect.left_top(), &mut is_dragged);
@@ -168,7 +180,7 @@ fn draw_and_process_objects(
             );
         }
 
-        // 3. Привязка к сетке и доступной области
+        // 4. Привязка к сетке и доступной области
         help_objects::fix_object_size_to_grid_standart(obj, editor_state.grid_size);
         help_objects::fix_object_position_to_grid_standart(
             obj,

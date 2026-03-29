@@ -50,6 +50,8 @@ pub struct FolderState {
 
 impl Yuti {
     pub fn new(_cc: &'_ eframe::CreationContext) -> Self {
+        egui_extras::install_image_loaders(&_cc.egui_ctx);
+
         Yuti {
             path: None,
             graph_root_node: None,

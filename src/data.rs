@@ -1,9 +1,8 @@
 pub mod data_impl;
 
-use std::path::PathBuf;
-
 use eframe::egui::Color32;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Node {
@@ -32,7 +31,10 @@ pub struct Object {
     pub stroke_color: (u8, u8, u8, u8),
     pub stroke_width: f32,
     pub z_index: u32,
+    // None = обычный текстовый объект, Some = объект с картинкой
+    pub image_path: Option<PathBuf>,
 }
+
 // Text Align:
 //      0 - Center
 //      1 - Left

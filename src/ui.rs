@@ -5,8 +5,6 @@ mod tools;
 
 use std::fs;
 
-use eframe::egui::{self, Id};
-
 use crate::{
     app::Yuti,
     data::{Node, Page},
@@ -32,6 +30,7 @@ impl eframe::App for Yuti {
                     crt_page,
                     &mut self.graph_state,
                     &mut self.editor_state,
+                    path,
                 );
                 content::logic::sort_by_z(crt_page);
                 content::logic::remove_obj_if_need(
@@ -133,6 +132,5 @@ impl eframe::App for Yuti {
             self.graph_state.page_links = Vec::new();
             self.graph_state.node_to_load_by_path = None;
         }
-        let clear_id = Id::new("is_path_to_clear");
     }
 }

@@ -1,11 +1,9 @@
+use crate::data::{Node, Object, Page};
+use eframe::egui::{Color32, Pos2, Vec2};
 use std::{
     path::PathBuf,
     time::{SystemTime, UNIX_EPOCH},
 };
-
-use eframe::egui::{Color32, Pos2, Vec2};
-
-use crate::data::{Node, Object, Page};
 
 impl Default for Node {
     fn default() -> Self {
@@ -13,7 +11,6 @@ impl Default for Node {
             .duration_since(UNIX_EPOCH)
             .expect("???")
             .as_nanos();
-
         Node {
             name: String::from("NewNode"),
             path: PathBuf::from(format!("{:x}.json", id)),
@@ -52,6 +49,25 @@ impl Object {
             stroke_color: (255, 255, 255, 255),
             stroke_width: 2.0,
             z_index: 0,
+            image_path: None,
+        }
+    }
+
+    pub fn new_image(image_path: PathBuf, pos: Pos2) -> Self {
+        Object {
+            text: String::new(),
+            pos: (pos.x, pos.y),
+            size: (200.0, 150.0),
+            corner_radius: 0.0,
+            color: (255, 255, 255, 0), // прозрачный фон
+            font_color: (255, 255, 255, 255),
+            font_size: 10.0,
+            text_offset: (0.0, 0.0),
+            text_align: 0,
+            stroke_color: (180, 180, 180, 255),
+            stroke_width: 1.0,
+            z_index: 0,
+            image_path: Some(image_path),
         }
     }
 
@@ -86,8 +102,7 @@ impl Object {
     }
 
     pub fn vec_u8_from_hex(color_str: &str) -> (u8, u8, u8, u8) {
-        let hex = color_str.trim_start_matches("#");
-
+        let hex = color_str.trim_start_matches('#');
         match hex.len() {
             6 => {
                 let r = u8::from_str_radix(&hex[0..2], 16).unwrap_or(0);
@@ -102,7 +117,7 @@ impl Object {
                 let a = u8::from_str_radix(&hex[6..8], 16).unwrap_or(255);
                 (r, g, b, a)
             }
-            _ => return (0, 0, 0, 255),
+            _ => (0, 0, 0, 255),
         }
     }
 
