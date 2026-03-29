@@ -1,7 +1,7 @@
 use eframe::egui;
 
 use crate::{
-    app::{NodeState, State},
+    app::{EditorState, GraphState},
     data::{LinkType, Page},
 };
 
@@ -14,62 +14,58 @@ pub mod logic;
 pub fn create_content_panel(
     ctx: &egui::Context,
     crt_page: &mut Page,
-    node_state: &mut NodeState,
-    state: &mut State,
+    graph_state: &mut GraphState,
+    editor_state: &mut EditorState,
 ) {
     egui::CentralPanel::default()
         .frame(egui::Frame::NONE.fill(egui::Color32::WHITE))
         .show(ctx, |ui| {
-            draw_and_process_page_links(ctx, ui, node_state);
+            draw_and_process_page_links(ctx, ui, graph_state);
             let inner_rect = ui.available_rect_before_wrap().shrink(30.0);
             ui.scope_builder(egui::UiBuilder::new().max_rect(inner_rect), |ui| {
-                draw_and_process_background(ctx, ui, crt_page, state);
-                draw_and_process_objects(ctx, ui, crt_page, state);
+                draw_and_process_background(ctx, ui, crt_page, editor_state);
+                draw_and_process_objects(ctx, ui, crt_page, editor_state);
             });
         });
 }
 
-fn draw_and_process_page_links(ctx: &egui::Context, ui: &mut egui::Ui, node_state: &mut NodeState) {
-    // * SETTINGS
+fn draw_and_process_page_links(
+    ctx: &egui::Context,
+    ui: &mut egui::Ui,
+    graph_state: &mut GraphState,
+) {
     let margin = 30.0;
     let parent_link_color = egui::Color32::RED;
     let child_link_color = egui::Color32::GREEN;
     let line_width = 30.0;
-    let assept_angle_diff = 0.12;
-    // *
+    let accept_angle_diff = 0.12;
 
-    let aviable_rect = ui.available_rect_before_wrap();
+    let available_rect = ui.available_rect_before_wrap();
     let painter = ui.painter();
 
-    // * 0. Draw Line
-    for page_link in node_state.page_links.iter() {
+    for page_link in graph_state.page_links.iter() {
         let stroke_color = if page_link.link_type == LinkType::ParentLink {
             parent_link_color
         } else {
             child_link_color
         };
-        let stroke = egui::Stroke::new(line_width, stroke_color);
-
         painter.arrow(
-            aviable_rect.center(),
+            available_rect.center(),
             egui::Vec2::new(page_link.direction_vec.0, page_link.direction_vec.1),
-            stroke,
+            egui::Stroke::new(line_width, stroke_color),
         );
     }
 
-    // * 1. Check Trigger
-    let in_link_area = help_page_links::is_mouse_in_link_area(ui, aviable_rect, margin);
-
-    // * 2. Process Click
+    let in_link_area = help_page_links::is_mouse_in_link_area(ui, available_rect, margin);
     if in_link_area {
         if let Some(mouse_pos) = ctx.input(|i| i.pointer.interact_pos()) {
-            let mouse_vec_angle = (mouse_pos - aviable_rect.center()).angle();
-            for link in node_state.page_links.iter() {
+            let mouse_vec_angle = (mouse_pos - available_rect.center()).angle();
+            for link in graph_state.page_links.iter() {
                 let link_vec_angle =
                     egui::Vec2::new(link.direction_vec.0, link.direction_vec.1).angle();
                 let delta = (link_vec_angle - mouse_vec_angle).abs();
-                if delta < assept_angle_diff {
-                    node_state.page_to_switch = Some(link.file_name.clone());
+                if delta < accept_angle_diff {
+                    graph_state.page_to_switch = Some(link.file_name.clone());
                 }
             }
         }
@@ -80,30 +76,21 @@ fn draw_and_process_background(
     ctx: &egui::Context,
     ui: &egui::Ui,
     crt_page: &mut Page,
-    state: &mut State,
+    editor_state: &mut EditorState,
 ) {
-    // * Settings
-    let background_color = egui::Color32::WHITE;
-    // *
-
-    let aviable_rect = ui.available_rect_before_wrap();
-
-    // * 0. Draw Backgound
+    let available_rect = ui.available_rect_before_wrap();
     ui.painter()
-        .rect_filled(aviable_rect, 0.0, background_color);
+        .rect_filled(available_rect, 0.0, egui::Color32::WHITE);
 
-    // * 1. Process Events
     let bg_response = ui.interact(
-        aviable_rect,
-        egui::Id::new("BackgourndResponse"),
+        available_rect,
+        egui::Id::new("BackgroundResponse"),
         egui::Sense::click(),
     );
     if bg_response.clicked() {
-        state.selected_object_id = None;
-        state.is_selected_for_text_edit = false;
+        editor_state.selected_object_id = None;
+        editor_state.is_selected_for_text_edit = false;
     }
-
-    // * 2. Create ContextMenu
     help_background::create_background_context_menu(ctx, &bg_response, crt_page);
 }
 
@@ -111,17 +98,19 @@ fn draw_and_process_objects(
     ctx: &egui::Context,
     ui: &mut egui::Ui,
     crt_page: &mut Page,
-    state: &mut State,
+    editor_state: &mut EditorState,
 ) {
-    let aviable_rect = ui.available_rect_before_wrap();
-    let painter = ui.painter().with_clip_rect(aviable_rect);
+    let available_rect = ui.available_rect_before_wrap();
+    let painter = ui.painter().with_clip_rect(available_rect);
 
     for (index, obj) in crt_page.objects.iter_mut().enumerate() {
         let rect = egui::Rect::from_min_max(obj.get_start_pos(), obj.get_end_pos());
-        let is_selected = state.selected_object_id == Some(index);
-        let colors = help_objects::get_colors(obj, is_selected, state.is_selected_for_text_edit);
+        let is_selected = editor_state.selected_object_id == Some(index);
+        let is_editing = is_selected && editor_state.is_selected_for_text_edit;
+        let colors =
+            help_objects::get_colors(obj, is_selected, editor_state.is_selected_for_text_edit);
 
-        // * 0. Draw Rect
+        // 0. Draw Rect
         painter.rect(
             rect,
             obj.corner_radius,
@@ -129,8 +118,9 @@ fn draw_and_process_objects(
             egui::Stroke::new(obj.stroke_width, colors.stroke_color),
             egui::StrokeKind::Inside,
         );
-        // * 1. Draw Text
-        if is_selected && state.is_selected_for_text_edit {
+
+        if is_editing {
+            // 1a. Режим редактирования текста
             help_objects::add_edit_text(
                 ui,
                 rect,
@@ -139,7 +129,15 @@ fn draw_and_process_objects(
                 obj.font_size,
                 obj.text_offset,
             );
+            // Только hover чтобы не перехватывать клики у TextEdit
+            let hover_resp = ui.interact(rect, egui::Id::new(index), egui::Sense::hover());
+            help_objects::create_object_context_menu(
+                &hover_resp,
+                index,
+                &mut editor_state.object_to_remove_id,
+            );
         } else {
+            // 1b. Режим отображения
             help_objects::add_label_text(
                 &painter,
                 rect,
@@ -149,15 +147,15 @@ fn draw_and_process_objects(
                 obj.text_offset,
                 obj.text_align,
             );
+            let obj_resp = help_objects::process_object_events(ui, obj, index, rect, editor_state);
+            help_objects::create_object_context_menu(
+                &obj_resp,
+                index,
+                &mut editor_state.object_to_remove_id,
+            );
         }
 
-        //* 2. Process Events
-        let obj_resp = help_objects::process_object_events(ui, obj, index, rect, state);
-
-        //* 3. Create ContextMenu
-        help_objects::create_object_context_menu(&obj_resp, index, &mut state.object_to_remove_id);
-
-        //* 4. Add Resize-Markers for selected Object
+        // 2. Resize-маркеры
         let mut is_dragged = false;
         if is_selected {
             help_objects::create_left_top_corner(ctx, ui, obj, rect.left_top(), &mut is_dragged);
@@ -170,13 +168,17 @@ fn draw_and_process_objects(
             );
         }
 
-        //* 5. Pos/Size <---> GridSize && Pos <---> AviableRect
-        help_objects::fix_object_size_to_grid_standart(obj, state.grid_size);
-        help_objects::fix_object_position_to_grid_standart(obj, state.grid_size, &is_dragged);
+        // 3. Привязка к сетке и доступной области
+        help_objects::fix_object_size_to_grid_standart(obj, editor_state.grid_size);
+        help_objects::fix_object_position_to_grid_standart(
+            obj,
+            editor_state.grid_size,
+            &is_dragged,
+        );
         help_objects::fix_object_position_to_aviable_rect(
             obj,
-            aviable_rect.left_top(),
-            aviable_rect.right_bottom(),
+            available_rect.left_top(),
+            available_rect.right_bottom(),
         );
     }
 }

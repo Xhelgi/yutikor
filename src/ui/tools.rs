@@ -1,16 +1,15 @@
 use eframe::egui;
 
 use crate::{
-    app::State,
+    app::EditorState,
     data::{Object, Page},
 };
 
-// ! HEADER
-pub fn create_top_menu(ctx: &egui::Context, state: &mut State) {
+pub fn create_top_menu(ctx: &egui::Context, editor_state: &mut EditorState) {
     let height = 20.0;
     let first_block_width = 100.0;
     let last_block_width = 200.0;
-    let (text, color) = if state.are_tools_visibled {
+    let (text, color) = if editor_state.are_tools_visible {
         ("Exit from Edit", egui::Color32::DARK_BLUE)
     } else {
         ("Go to Edit", egui::Color32::DARK_GREEN)
@@ -24,9 +23,8 @@ pub fn create_top_menu(ctx: &egui::Context, state: &mut State) {
                     .add_sized([first_block_width, height], egui::Button::new("Close Page"))
                     .clicked()
                 {
-                    state.page_to_close = true;
+                    editor_state.page_to_close = true;
                 }
-
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui
                         .add_sized(
@@ -35,9 +33,8 @@ pub fn create_top_menu(ctx: &egui::Context, state: &mut State) {
                         )
                         .clicked()
                     {
-                        state.are_tools_visibled = !state.are_tools_visibled;
+                        editor_state.are_tools_visible = !editor_state.are_tools_visible;
                     }
-
                     ui.centered_and_justified(|ui| {
                         ui.horizontal_centered(|ui| {
                             ui.add(egui::Label::new(
@@ -52,56 +49,38 @@ pub fn create_top_menu(ctx: &egui::Context, state: &mut State) {
         });
 }
 
-// ! TOOLS AREA
-pub fn create_tools_area(ctx: &egui::Context, state: &mut State, crt_page: &mut Page) {
-    // \\ CONSTS // \\
+pub fn create_tools_area(ctx: &egui::Context, editor_state: &mut EditorState, crt_page: &mut Page) {
     let height = 120.0;
     let sector_width = 150.0;
-    // \\ CONSTS // \\
 
     egui::Area::new(egui::Id::new("AreaMenuPanel")).show(ctx, |ui| {
-        // ! TOOLS AREA
         ui.add_sized([ui.available_width(), height], |ui: &mut egui::Ui| {
             ui.horizontal(|ui| {
-                // ========= Center Content
                 ui.centered_and_justified(|ui| {
                     ui.horizontal(|ui| {
-                        if state.are_tools_visibled
-                            && let Some(selected_obj_id) = state.selected_object_id
+                        if editor_state.are_tools_visible
+                            && let Some(selected_obj_id) = editor_state.selected_object_id
                             && let Some(object) = crt_page.objects.get_mut(selected_obj_id)
                         {
-                            // ====== IF PANEL IS VISIBLE AND OBJECT SELECTED
-
                             ui.add_space(10.0);
                             ui.separator();
 
-                            // ! BACKGROUND SECTOR
-                            draw_background_sector(state, ui, object, sector_width, height);
+                            draw_background_sector(editor_state, ui, object, sector_width, height);
                             ui.separator();
 
-                            // ! FONTS SECTOR
-                            draw_fonts_sector(state, ui, object, sector_width, height);
-
+                            draw_fonts_sector(editor_state, ui, object, sector_width, height);
                             ui.separator();
 
-                            // ! STROKE SECTOR
-                            draw_stroke_sector(state, ui, object, sector_width, height);
-
+                            draw_stroke_sector(editor_state, ui, object, sector_width, height);
                             ui.separator();
 
-                            // ! POSITION SECTOR
-                            draw_position_sector(state, ui, object, sector_width, height);
-
+                            draw_position_sector(editor_state, ui, object, sector_width, height);
                             ui.separator();
 
-                            // ! TEXT SECTOR
                             draw_text_sector(ui, object, sector_width, height);
-
                             ui.separator();
 
-                            // ! Z-INDEX SECTOR
-                            draw_z_index_sector(state, ui, object, sector_width, height);
-
+                            draw_z_index_sector(editor_state, ui, object, sector_width, height);
                             ui.separator();
                         }
                     });
@@ -112,9 +91,8 @@ pub fn create_tools_area(ctx: &egui::Context, state: &mut State, crt_page: &mut 
     });
 }
 
-// ? SECTORS
 fn draw_background_sector(
-    state: &mut State,
+    editor_state: &mut EditorState,
     ui: &mut egui::Ui,
     object: &mut Object,
     sector_width: f32,
@@ -123,26 +101,27 @@ fn draw_background_sector(
     ui.add_sized([sector_width, height], |ui: &mut egui::Ui| {
         ui.vertical(|ui| {
             ui.label("Background Color:");
-            let temp = ui.text_edit_singleline(&mut state.context_menu_color);
+            let temp = ui.text_edit_singleline(&mut editor_state.tools_buf.color);
             if !temp.has_focus() {
-                state.context_menu_color = Object::hex_from_vec_u8(object.color)
+                editor_state.tools_buf.color = Object::hex_from_vec_u8(object.color);
             }
             if temp.changed() {
-                object.color = Object::vec_u8_from_hex(&state.context_menu_color);
-            };
-            state.sett_backgound_color = object.get_color();
+                object.color = Object::vec_u8_from_hex(&editor_state.tools_buf.color);
+            }
+            editor_state.tools_buf.color_picker = object.get_color();
             if ui
-                .color_edit_button_srgba(&mut state.sett_backgound_color)
+                .color_edit_button_srgba(&mut editor_state.tools_buf.color_picker)
                 .changed()
             {
-                object.color = Object::vec_u8_from_color32(state.sett_backgound_color);
-            };
+                object.color = Object::vec_u8_from_color32(editor_state.tools_buf.color_picker);
+            }
         })
         .response
     });
 }
+
 fn draw_fonts_sector(
-    state: &mut State,
+    editor_state: &mut EditorState,
     ui: &mut egui::Ui,
     object: &mut Object,
     sector_width: f32,
@@ -151,20 +130,21 @@ fn draw_fonts_sector(
     ui.add_sized([sector_width, height], |ui: &mut egui::Ui| {
         ui.vertical(|ui| {
             ui.label("Font Color:");
-            let temp = ui.text_edit_singleline(&mut state.context_menu_font_color);
+            let temp = ui.text_edit_singleline(&mut editor_state.tools_buf.font_color);
             if !temp.has_focus() {
-                state.context_menu_font_color = Object::hex_from_vec_u8(object.font_color)
+                editor_state.tools_buf.font_color = Object::hex_from_vec_u8(object.font_color);
             }
             if temp.changed() {
-                object.font_color = Object::vec_u8_from_hex(&state.context_menu_font_color);
-            };
-            state.sett_font_color = object.get_font_color();
+                object.font_color = Object::vec_u8_from_hex(&editor_state.tools_buf.font_color);
+            }
+            editor_state.tools_buf.font_color_picker = object.get_font_color();
             if ui
-                .color_edit_button_srgba(&mut state.sett_font_color)
+                .color_edit_button_srgba(&mut editor_state.tools_buf.font_color_picker)
                 .changed()
             {
-                object.font_color = Object::vec_u8_from_color32(state.sett_font_color);
-            };
+                object.font_color =
+                    Object::vec_u8_from_color32(editor_state.tools_buf.font_color_picker);
+            }
             ui.separator();
             ui.add(
                 egui::DragValue::new(&mut object.font_size)
@@ -176,8 +156,9 @@ fn draw_fonts_sector(
         .response
     });
 }
+
 fn draw_stroke_sector(
-    state: &mut State,
+    editor_state: &mut EditorState,
     ui: &mut egui::Ui,
     object: &mut Object,
     sector_width: f32,
@@ -186,20 +167,21 @@ fn draw_stroke_sector(
     ui.add_sized([sector_width, height], |ui: &mut egui::Ui| {
         ui.vertical(|ui| {
             ui.label("Stroke Color:");
-            let temp = ui.text_edit_singleline(&mut state.context_menu_stroke_color);
+            let temp = ui.text_edit_singleline(&mut editor_state.tools_buf.stroke_color);
             if !temp.has_focus() {
-                state.context_menu_stroke_color = Object::hex_from_vec_u8(object.stroke_color)
+                editor_state.tools_buf.stroke_color = Object::hex_from_vec_u8(object.stroke_color);
             }
             if temp.changed() {
-                object.stroke_color = Object::vec_u8_from_hex(&state.context_menu_stroke_color);
-            };
-            state.sett_stroke_color = object.get_stroke_color();
+                object.stroke_color = Object::vec_u8_from_hex(&editor_state.tools_buf.stroke_color);
+            }
+            editor_state.tools_buf.stroke_color_picker = object.get_stroke_color();
             if ui
-                .color_edit_button_srgba(&mut state.sett_stroke_color)
+                .color_edit_button_srgba(&mut editor_state.tools_buf.stroke_color_picker)
                 .changed()
             {
-                object.stroke_color = Object::vec_u8_from_color32(state.sett_stroke_color);
-            };
+                object.stroke_color =
+                    Object::vec_u8_from_color32(editor_state.tools_buf.stroke_color_picker);
+            }
             ui.separator();
             ui.add(
                 egui::DragValue::new(&mut object.stroke_width)
@@ -217,8 +199,9 @@ fn draw_stroke_sector(
         .response
     });
 }
+
 fn draw_position_sector(
-    state: &mut State,
+    editor_state: &mut EditorState,
     ui: &mut egui::Ui,
     object: &mut Object,
     sector_width: f32,
@@ -230,13 +213,13 @@ fn draw_position_sector(
             ui.horizontal(|ui| {
                 ui.add(
                     egui::DragValue::new(&mut object.pos.0)
-                        .speed(state.grid_size)
+                        .speed(editor_state.grid_size)
                         .range(0..=999999)
                         .prefix("x: "),
                 );
                 ui.add(
                     egui::DragValue::new(&mut object.pos.1)
-                        .speed(state.grid_size)
+                        .speed(editor_state.grid_size)
                         .range(0..=999999)
                         .prefix("y: "),
                 );
@@ -246,13 +229,13 @@ fn draw_position_sector(
             ui.horizontal(|ui| {
                 ui.add(
                     egui::DragValue::new(&mut object.size.0)
-                        .speed(state.grid_size)
+                        .speed(editor_state.grid_size)
                         .range(0..=999999)
                         .prefix("Width: "),
                 );
                 ui.add(
                     egui::DragValue::new(&mut object.size.1)
-                        .speed(state.grid_size)
+                        .speed(editor_state.grid_size)
                         .range(0..=999999)
                         .prefix("Height: "),
                 );
@@ -261,6 +244,7 @@ fn draw_position_sector(
         .response
     });
 }
+
 fn draw_text_sector(ui: &mut egui::Ui, object: &mut Object, sector_width: f32, height: f32) {
     ui.add_sized([sector_width, height], |ui: &mut egui::Ui| {
         ui.vertical(|ui| {
@@ -280,7 +264,7 @@ fn draw_text_sector(ui: &mut egui::Ui, object: &mut Object, sector_width: f32, h
                 );
             });
             ui.separator();
-            ui.label("Text Allign:");
+            ui.label("Text Align:");
             ui.horizontal(|ui| {
                 ui.add_space(20.0);
                 ui.vertical(|ui| {
@@ -293,8 +277,9 @@ fn draw_text_sector(ui: &mut egui::Ui, object: &mut Object, sector_width: f32, h
         .response
     });
 }
+
 fn draw_z_index_sector(
-    state: &mut State,
+    editor_state: &mut EditorState,
     ui: &mut egui::Ui,
     object: &mut Object,
     sector_width: f32,
@@ -312,25 +297,17 @@ fn draw_z_index_sector(
                 )
                 .changed()
             {
-                state.selected_object_id = None;
+                editor_state.selected_object_id = None;
             }
             ui.separator();
             if ui.button("up").clicked() {
-                object.z_index = if object.z_index > 999999 {
-                    999999
-                } else {
-                    object.z_index + 1
-                };
-                state.selected_object_id = None;
-            };
+                object.z_index = object.z_index.saturating_add(1).min(999999);
+                editor_state.selected_object_id = None;
+            }
             if ui.button("down").clicked() {
-                object.z_index = if object.z_index == 0 {
-                    0
-                } else {
-                    object.z_index - 1
-                };
-                state.selected_object_id = None;
-            };
+                object.z_index = object.z_index.saturating_sub(1);
+                editor_state.selected_object_id = None;
+            }
         })
         .response
     });

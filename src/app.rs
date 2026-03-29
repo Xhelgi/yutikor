@@ -1,19 +1,40 @@
+use crate::data::{Node, Object, Page, PageLink};
+use eframe::egui::Color32;
 use std::path::PathBuf;
 
-use eframe::egui::Color32;
-
-use crate::data::{Node, Object, Page, PageLink};
-
 pub struct Yuti {
-    pub path: PathBuf,
+    pub path: Option<PathBuf>,
     pub graph_root_node: Option<Node>,
     pub crt_page: Option<Page>,
-
-    pub state: State,
-    pub node_state: NodeState,
+    pub editor_state: EditorState,
+    pub graph_state: GraphState,
+    pub folder_state: FolderState,
 }
 
-pub struct NodeState {
+/// Стейт редактора страницы
+pub struct EditorState {
+    pub grid_size: f32,
+    pub page_to_close: bool,
+    pub object_to_remove_id: Option<usize>,
+    pub selected_object_id: Option<usize>,
+    pub is_selected_for_text_edit: bool,
+    pub are_tools_visible: bool,
+    pub copied_object: Option<Object>,
+    pub tools_buf: ToolsBuffer,
+}
+
+/// Временные буферы для tools-панели (hex-строки и color picker)
+pub struct ToolsBuffer {
+    pub color: String,
+    pub font_color: String,
+    pub stroke_color: String,
+    pub color_picker: Color32,
+    pub font_color_picker: Color32,
+    pub stroke_color_picker: Color32,
+}
+
+/// Стейт графа и навигации между страницами
+pub struct GraphState {
     pub node_to_remove_by_path: Option<PathBuf>,
     pub node_to_load_by_path: Option<PathBuf>,
     pub page_to_switch: Option<PathBuf>,
@@ -21,67 +42,55 @@ pub struct NodeState {
     pub start_coord: (f32, f32),
 }
 
-pub struct State {
-    pub grid_size: f32,
-
-    pub page_to_close: bool,
-
-    pub object_to_remove_id: Option<usize>,
-    pub selected_object_id: Option<usize>,
-    pub is_selected_for_text_edit: bool,
-
-    pub context_menu_color: String,
-    pub context_menu_font_color: String,
-    pub context_menu_stroke_color: String,
-    pub are_tools_visibled: bool,
-
-    pub sett_backgound_color: Color32,
-    pub sett_font_color: Color32,
-    pub sett_stroke_color: Color32,
-
-    pub copied_object: Option<Object>,
+/// Стейт экрана выбора папки
+pub struct FolderState {
+    pub path_line: String,
+    pub is_path_to_clear: bool,
 }
 
 impl Yuti {
     pub fn new(_cc: &'_ eframe::CreationContext) -> Self {
-        let default_path = "TestSaveFolder/";
-
-        let state = State {
-            grid_size: 10.0,
-
-            page_to_close: false,
-
-            selected_object_id: None,
-            is_selected_for_text_edit: false,
-            object_to_remove_id: None,
-
-            context_menu_color: String::new(),
-            context_menu_stroke_color: String::new(),
-            context_menu_font_color: String::new(),
-            are_tools_visibled: false,
-
-            sett_backgound_color: Color32::BLACK,
-            sett_font_color: Color32::BLACK,
-            sett_stroke_color: Color32::BLACK,
-
-            copied_object: None,
-        };
-
-        let node_state = NodeState {
-            node_to_remove_by_path: None,
-            node_to_load_by_path: None,
-            page_to_switch: None,
-            page_links: Vec::new(),
-            start_coord: (0.0, 0.0),
-        };
-
         Yuti {
-            path: PathBuf::from(default_path),
+            path: None,
             graph_root_node: None,
             crt_page: None,
-
-            state,
-            node_state,
+            editor_state: EditorState {
+                grid_size: 10.0,
+                page_to_close: false,
+                object_to_remove_id: None,
+                selected_object_id: None,
+                is_selected_for_text_edit: false,
+                are_tools_visible: false,
+                copied_object: None,
+                tools_buf: ToolsBuffer {
+                    color: String::new(),
+                    font_color: String::new(),
+                    stroke_color: String::new(),
+                    color_picker: Color32::BLACK,
+                    font_color_picker: Color32::BLACK,
+                    stroke_color_picker: Color32::BLACK,
+                },
+            },
+            graph_state: GraphState {
+                node_to_remove_by_path: None,
+                node_to_load_by_path: None,
+                page_to_switch: None,
+                page_links: Vec::new(),
+                start_coord: (0.0, 0.0),
+            },
+            folder_state: FolderState {
+                path_line: String::new(),
+                is_path_to_clear: false,
+            },
         }
+    }
+
+    /// Сброс стейта редактора при закрытии/смене страницы
+    pub fn reset_editor_state(&mut self) {
+        self.editor_state.page_to_close = false;
+        self.editor_state.are_tools_visible = false;
+        self.editor_state.selected_object_id = None;
+        self.editor_state.is_selected_for_text_edit = false;
+        self.graph_state.page_links = Vec::new();
     }
 }
