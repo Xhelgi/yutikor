@@ -1,5 +1,9 @@
+# Copyright (C) 2026 Xhelgi
+# This file is part of Yutikor and is released under the GNU GPL v3.0.
+
 [package]
 name = "yutikor"
+authors = ["Xhelgi [xhelgi@proton.me]"]
 version = "0.1.0"
 edition = "2024"
 

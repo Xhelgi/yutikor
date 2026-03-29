@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Xhelgi
+// This file is part of Yutikor and is released under the GNU GPL v3.0.
+
 mod app;
 mod data;
 mod ui;

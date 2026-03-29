@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Xhelgi
+// This file is part of Yutikor and is released under the GNU GPL v3.0.
+
 use eframe::egui;
 
 pub fn is_mouse_in_link_area(ui: &egui::Ui, aviable_rect: egui::Rect, margin: f32) -> bool {
