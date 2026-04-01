@@ -52,7 +52,7 @@
 *Thanks to the creators of these crates for the excellent functionality and documentation.*
 
 ## AI Usage
-This project **was created entirely by hand**. In a few cases, AI was used to quickly generate the function structure or code-refactor under time constraints - these commits are clearly marked in the commit history. In such cases, the generated code will be completely rewritten in the future.
+This project is **predominantly handwritten**. In a few cases, AI was used to quickly generate the function structure or code-refactor under time constraints - these commits are clearly marked in the commit history. In such cases, the generated code will be completely rewritten in the future.
 
 ## License
 Distributed under the GPL-3.0 License. See [LICENSE](LICENSE) for more information.
