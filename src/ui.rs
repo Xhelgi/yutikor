@@ -21,9 +21,10 @@ impl eframe::App for Yuti {
     }
 
     fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
+        // * 0. Path == Some
         if let Some(path) = &self.path.clone() {
+            // * 1. CrtPage == Some
             if let Some(crt_page) = &mut self.crt_page {
-                // ===== Режим редактирования страницы =====
                 tools::create_top_menu(ctx, &mut self.editor_state);
                 if self.editor_state.are_tools_visible {
                     tools::create_tools_area(ctx, &mut self.editor_state, crt_page);
@@ -41,8 +42,8 @@ impl eframe::App for Yuti {
                     &mut self.editor_state.object_to_remove_id,
                 );
                 content::logic::hotkey_process(ctx, &mut self.editor_state, crt_page);
+            // * 1. CrtPage == None | GraphRoot == Some
             } else if let Some(graph_root) = &mut self.graph_root_node {
-                // ===== Режим графа =====
                 menu::create_graph_panel(
                     ctx,
                     &mut self.crt_page,
@@ -51,27 +52,11 @@ impl eframe::App for Yuti {
                     &mut self.folder_state,
                     path,
                 );
+            // * 1. CrtPage == None | GraphRoot == None
             } else {
-                // ===== Загрузка графа с диска =====
-                let graph_path = path.join("graph.base");
-                if let Ok(json_string) = fs::read_to_string(&graph_path) {
-                    match serde_json::from_str(&json_string) {
-                        Ok(node) => self.graph_root_node = Some(node),
-                        Err(e) => {
-                            println!("Error reading GraphFile: {e}");
-                            fs::remove_file(&graph_path).expect("Cannot remove broken GraphFile!");
-                        }
-                    }
-                } else {
-                    let def_graph = Node::default();
-                    let json =
-                        serde_json::to_string(&def_graph).expect("Cannot serialize default Node");
-                    fs::write(&graph_path, json).expect("Cannot create default GraphFile");
-                    self.graph_root_node = Some(def_graph);
-                }
+                self.graph_root_node = Some(folder::load_root_node(path));
             }
 
-            // ===== Команда: закрыть страницу =====
             if self.editor_state.page_to_close {
                 if let Some(save_path) = &self.graph_state.node_to_load_by_path.clone()
                     && let Some(crt_page) = &self.crt_page
@@ -111,14 +96,13 @@ impl eframe::App for Yuti {
                     self.graph_state.page_links = menu::get_links_by_path(&switch_to, root);
                 }
             }
+        // * 0. Path == Nonde
         } else {
-            // ===== Нет пути — выбор папки =====
             self.crt_page = None;
             self.graph_root_node = None;
             folder::draw_folder_select_panel(ctx, &mut self.folder_state, &mut self.path);
         }
 
-        // ===== Команда: сбросить путь =====
         if self.folder_state.is_path_to_clear {
             if let Some(path) = &self.path {
                 menu::save_graph(&self.graph_root_node, path);

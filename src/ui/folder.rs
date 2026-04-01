@@ -1,11 +1,15 @@
 // Copyright (C) 2026 Xhelgi
 // This file is part of Yutikor and is released under the GNU GPL v3.0.
 
-use eframe::egui;
+use eframe::egui::{self};
 use rfd::FileDialog;
-use std::{collections::VecDeque, fs, path::PathBuf};
+use std::{
+    collections::VecDeque,
+    fs,
+    path::{Path, PathBuf},
+};
 
-use crate::app::FolderState;
+use crate::{app::FolderState, data::Node};
 
 pub fn draw_folder_select_panel(
     ctx: &egui::Context,
@@ -151,4 +155,36 @@ pub fn draw_folder_select_panel(
             println!("{e}");
         }
     }
+}
+
+pub fn load_root_node(path: &Path) -> Node {
+    let graph_path = path.join("graph.base");
+    let mut root_node = Node::default();
+    match fs::read_to_string(&graph_path) {
+        Ok(json_graph) => {
+            match serde_json::from_str(&json_graph) {
+                Ok(node) => {
+                    root_node = node;
+                }
+                Err(_) => {
+                    println!("Graph File cannot be Desirialized!");
+                    // TODO: Что делать если файл не расшифровывается? Если удалить и создать новый, то
+                    // TODO: пользователь может потерять важные данные. Но могу ли я его починить? Если я
+                    // TODO: буду менять структуру root-node, то проблема будет в измененной структуре, и тогда
+                    // TODO: я должен буду учесть обратную совместимость здесь. А пока я просто удаляю файл.
+                    if let Err(_) = fs::remove_file(&graph_path) {
+                        println!("Bad Graph file cannot be removed!");
+                    }
+                }
+            }
+        }
+        // Create new default Node and save it into GraphFile
+        Err(e) => {
+            println!("Error by reading GraphFile: {e}");
+
+            let json = serde_json::to_string(&root_node).expect("Cannot serialize default Node");
+            fs::write(&graph_path, json).expect("Cannot create default GraphFile");
+        }
+    }
+    root_node
 }
