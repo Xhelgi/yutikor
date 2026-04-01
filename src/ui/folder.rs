@@ -60,12 +60,11 @@ pub fn draw_folder_select_panel(
                             )
                             .clicked()
                         {
-                            if let Some(file) = FileDialog::new()
-                                .set_directory("/")
-                                .pick_folder()
-                                && let Some(sclice) = file.to_str() {
-                                    folder_state.path_line = String::from(sclice);
-                                }
+                            if let Some(file) = FileDialog::new().set_directory("/").pick_folder()
+                                && let Some(sclice) = file.to_str()
+                            {
+                                folder_state.path_line = String::from(sclice);
+                            }
                         }
                         ui.add_sized(
                             [text_edit_width * 0.8, text_edit_height],
@@ -80,10 +79,16 @@ pub fn draw_folder_select_panel(
                             && !folder_state.path_line.is_empty()
                         {
                             let new_path = PathBuf::from(&folder_state.path_line);
-                            let test_name = format!("test_file_{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().subsec_nanos());
+                            let test_name = format!(
+                                "test_file_{}",
+                                std::time::SystemTime::now()
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .unwrap_or_default()
+                                    .subsec_nanos()
+                            );
                             println!("test name == {test_name}");
                             if let Ok(exist) = fs::exists(&new_path)
-                                && exist 
+                                && exist
                                 && let Ok(_) = fs::write(&new_path.join(&test_name), "")
                                 && let Ok(_) = fs::read(&new_path.join(&test_name))
                                 && let Ok(_) = fs::remove_file(&new_path.join(&test_name))
